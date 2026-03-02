@@ -77,6 +77,18 @@ const hookPresetMappings: Record<string, HookMappingConfig[]> = {
         "New email from {{messages[0].from}}\nSubject: {{messages[0].subject}}\n{{messages[0].snippet}}\n{{messages[0].body}}",
     },
   ],
+  imap: [
+    {
+      id: "imap",
+      match: { path: "imap" },
+      action: "agent",
+      wakeMode: "now",
+      name: "Email",
+      sessionKey: "hook:imap:{{messages[0].id}}",
+      messageTemplate:
+        "New email from {{messages[0].from}}\nSubject: {{messages[0].subject}}\nDate: {{messages[0].date}}\n{{messages[0].snippet}}\n{{messages[0].body}}",
+    },
+  ],
 };
 
 const transformCache = new Map<string, HookTransformFn>();
@@ -109,6 +121,7 @@ export function resolveHookMappings(
 ): HookMappingResolved[] {
   const presets = hooks?.presets ?? [];
   const gmailAllowUnsafe = hooks?.gmail?.allowUnsafeExternalContent;
+  const imapAllowUnsafe = hooks?.imap?.allowUnsafeExternalContent;
   const mappings: HookMappingConfig[] = [];
   if (hooks?.mappings) {
     mappings.push(...hooks.mappings);
@@ -123,6 +136,15 @@ export function resolveHookMappings(
         ...presetMappings.map((mapping) => ({
           ...mapping,
           allowUnsafeExternalContent: gmailAllowUnsafe,
+        })),
+      );
+      continue;
+    }
+    if (preset === "imap" && typeof imapAllowUnsafe === "boolean") {
+      mappings.push(
+        ...presetMappings.map((mapping) => ({
+          ...mapping,
+          allowUnsafeExternalContent: imapAllowUnsafe,
         })),
       );
       continue;
