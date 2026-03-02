@@ -156,7 +156,8 @@ export async function checkAccount(params: {
   account?: string;
   config?: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const args = ["himalaya", ...baseArgs(params), "account", "doctor"];
+  // account doctor takes the account as a positional arg, not via -a
+  const args = ["himalaya", ...baseArgs({ config: params.config }), "account", "doctor"];
   if (params.account) {
     args.push(params.account);
   }
