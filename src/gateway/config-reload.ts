@@ -1,9 +1,13 @@
 import { isDeepStrictEqual } from "node:util";
 import chokidar from "chokidar";
-import { type ChannelId, listChannelPlugins } from "../channels/plugins/index.js";
 import type { OpenClawConfig, ConfigFileSnapshot, GatewayReloadMode } from "../config/config.js";
-import { getActivePluginRegistry } from "../plugins/runtime.js";
+import { formatConfigIssueLines } from "../config/issue-format.js";
+import { getActivePluginRegistry } from "../plugins/runtime.ts";
 import { isPlainObject } from "../utils.js";
+import { buildGatewayReloadPlan, type GatewayReloadPlan } from "./config-reload-plan.js";
+
+export { buildGatewayReloadPlan };
+export type { GatewayReloadPlan } from "./config-reload-plan.js";
 
 export type GatewayReloadSettings = {
   mode: GatewayReloadMode;
@@ -337,7 +341,7 @@ export function startGatewayConfigReloader(opts: {
     if (snapshot.valid) {
       return false;
     }
-    const issues = snapshot.issues.map((issue) => `${issue.path}: ${issue.message}`).join(", ");
+    const issues = formatConfigIssueLines(snapshot.issues, "").join(", ");
     opts.log.warn(`config reload skipped (invalid config): ${issues}`);
     return true;
   };
