@@ -144,7 +144,7 @@ export async function readMessage(params: {
 }
 
 /**
- * Mark an envelope as seen by adding the "seen" flag.
+ * Mark an envelope as seen by adding the "Seen" flag.
  */
 export async function markEnvelopeSeen(params: {
   account?: string;
@@ -161,7 +161,7 @@ export async function markEnvelopeSeen(params: {
     "-f",
     params.folder,
     params.id,
-    "seen",
+    "Seen",
   ];
 
   const result = await runCommandWithTimeout(args, { timeoutMs: 15_000 });
