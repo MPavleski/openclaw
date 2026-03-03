@@ -241,6 +241,8 @@ async function processEnvelope(
   };
 
   log.debug(`delivering payload to hook: ${cfg.hookUrl}`);
+  log.debug(`payload subject: "${envelope.subject}"`);
+  log.debug(`payload from: "${envelope.from}"`);
   await deliverToHook(cfg, payload);
 
   if (cfg.markSeen) {
@@ -263,25 +265,42 @@ async function processEnvelope(
 
 async function deliverToHook(cfg: ImapHookRuntimeConfig, payload: unknown): Promise<void> {
   log.debug(`deliverToHook: POST to ${cfg.hookUrl}`);
-  const payloadSize = JSON.stringify(payload).length;
-  log.debug(`payload size: ${payloadSize} bytes`);
+  const payloadJson = JSON.stringify(payload);
+  log.debug(`payload: ${payloadJson}`);
+  log.debug(`payload size: ${payloadJson.length} bytes`);
 
-  const response = await fetch(cfg.hookUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${cfg.hookToken}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeoutMs = 30_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    const msg = `hook delivery failed (${response.status}): ${text.slice(0, 200)}`;
-    log.error(msg);
-    throw new Error(msg);
+  try {
+    const response = await fetch(cfg.hookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cfg.hookToken}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      const msg = `hook delivery failed (${response.status}): ${text.slice(0, 200)}`;
+      log.error(msg);
+      throw new Error(msg);
+    }
+    log.debug(`hook delivery succeeded: ${response.status}`);
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err instanceof Error && err.name === "AbortError") {
+      const msg = `hook delivery timed out after ${timeoutMs}ms`;
+      log.error(msg);
+      throw new Error(msg, { cause: err });
+    }
+    throw err;
   }
-  log.debug(`hook delivery succeeded: ${response.status}`);
 }
 
 function truncateBody(body: string, maxBytes: number): string {
