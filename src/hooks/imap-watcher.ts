@@ -25,6 +25,7 @@ let pollTimer: ReturnType<typeof setTimeout> | null = null;
 let shuttingDown = false;
 let currentConfig: ImapHookRuntimeConfig | null = null;
 let seenIds = new Set<string>();
+let generation = 0; // Incremented on each start to detect stale poll cycles from previous instances.
 
 function isHimalayaAvailable(): boolean {
   return hasBinary("himalaya");
@@ -84,10 +85,12 @@ export async function startImapWatcher(
   currentConfig = runtimeConfig;
   shuttingDown = false;
   seenIds = new Set();
+  generation += 1;
+  const currentGeneration = generation;
 
   // Schedule the first poll immediately.
   log.debug("scheduling first poll immediately");
-  schedulePoll(runtimeConfig, 0);
+  schedulePoll(runtimeConfig, 0, currentGeneration);
 
   log.info(
     `imap watcher started for ${runtimeConfig.account} (poll every ${runtimeConfig.pollIntervalSeconds}s)`,
@@ -126,22 +129,32 @@ export function isImapWatcherRunning(): boolean {
 
 // -- internal --
 
-function schedulePoll(cfg: ImapHookRuntimeConfig, delayMs: number) {
+function schedulePoll(cfg: ImapHookRuntimeConfig, delayMs: number, expectedGeneration: number) {
   if (shuttingDown) {
     log.debug("schedulePoll: shutting down, not scheduling");
     return;
   }
-  log.debug(`schedulePoll: scheduling next poll in ${delayMs}ms`);
+  log.debug(
+    `schedulePoll: scheduling next poll in ${delayMs}ms (generation=${expectedGeneration})`,
+  );
   pollTimer = setTimeout(() => {
-    void runPollCycle(cfg);
+    void runPollCycle(cfg, expectedGeneration);
   }, delayMs);
 }
 
-async function runPollCycle(cfg: ImapHookRuntimeConfig): Promise<void> {
-  log.debug("runPollCycle started");
+async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: number): Promise<void> {
+  log.debug(`runPollCycle started (generation=${expectedGeneration})`);
 
   if (shuttingDown || !currentConfig) {
     log.debug("shuttingDown or no currentConfig, aborting poll cycle");
+    return;
+  }
+
+  // Check if this is a stale poll cycle from a previous watcher instance
+  if (expectedGeneration !== generation) {
+    log.debug(
+      `stale poll cycle detected (expected=${expectedGeneration}, current=${generation}), aborting`,
+    );
     return;
   }
 
@@ -168,6 +181,12 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig): Promise<void> {
     log.debug(`found ${newEnvelopes.length} new envelopes (not in seenIds set)`);
 
     for (const envelope of newEnvelopes) {
+      // Check generation before processing each envelope
+      if (expectedGeneration !== generation) {
+        log.debug(`stale poll cycle detected during envelope processing, aborting`);
+        break;
+      }
+
       if (shuttingDown) {
         log.debug("shutting down, breaking out of envelope processing loop");
         break;
@@ -190,9 +209,15 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig): Promise<void> {
     log.error(`poll cycle failed: ${String(err)}`);
   }
 
+  // Check generation before rescheduling
+  if (expectedGeneration !== generation) {
+    log.debug(`stale poll cycle detected before reschedule, not rescheduling`);
+    return;
+  }
+
   // Schedule next poll.
   log.debug(`scheduling next poll in ${cfg.pollIntervalSeconds}s`);
-  schedulePoll(cfg, cfg.pollIntervalSeconds * 1000);
+  schedulePoll(cfg, cfg.pollIntervalSeconds * 1000, expectedGeneration);
 }
 
 async function processEnvelope(
