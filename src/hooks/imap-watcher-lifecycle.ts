@@ -27,7 +27,8 @@ export async function startImapWatcherWithLogs(params: {
     if (
       result.reason &&
       result.reason !== "hooks not enabled" &&
-      result.reason !== "no imap account configured"
+      result.reason !== "no imap account configured" &&
+      result.reason !== "imap account required"
     ) {
       params.log.warn(`imap watcher not started: ${result.reason}`);
     }

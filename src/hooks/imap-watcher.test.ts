@@ -104,7 +104,7 @@ describe("imap-watcher", () => {
     expect(vi.mocked(markEnvelopeSeen)).not.toHaveBeenCalled();
   });
 
-  it("stops pagination when current page is fully already seen", async () => {
+  it("continues pagination when current page is fully already seen", async () => {
     const mkEnvelope = (id: string) => ({
       id,
       from: "sender@example.com",
@@ -154,9 +154,9 @@ describe("imap-watcher", () => {
     await vi.advanceTimersByTimeAsync(3_600_000);
 
     const requestedPages = vi.mocked(listEnvelopes).mock.calls.map(([params]) => params.page ?? 1);
-    expect(requestedPages).toEqual([1]);
+    expect(requestedPages).toEqual([1, 2, 3]);
 
     const fetchMock = vi.mocked(fetch);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

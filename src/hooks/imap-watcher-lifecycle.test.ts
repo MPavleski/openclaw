@@ -39,7 +39,7 @@ describe("imap-watcher-lifecycle", () => {
     const { startImapWatcher } = await import("./imap-watcher.js");
     vi.mocked(startImapWatcher).mockResolvedValueOnce({
       started: false,
-      reason: "no imap account configured",
+      reason: "imap account required",
     });
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     await startImapWatcherWithLogs({ cfg: {} as OpenClawConfig, log });

@@ -202,12 +202,12 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
       const newEnvelopes = envelopes.filter((e) => e.id && !seenIds.has(e.id));
       log.debug(`found ${newEnvelopes.length} new envelopes on page ${page} (not in seenIds set)`);
 
-      // If all envelopes on this page are already seen, stop pagination
-      // This prevents infinite loops when markSeen is disabled
+      // Continue pagination even when this page is fully seen so unread
+      // messages on deeper pages are still retried after partial failures.
       if (newEnvelopes.length === 0) {
-        log.debug(`all envelopes on page ${page} already processed, stopping pagination`);
-        hasMorePages = false;
-        break;
+        log.debug(`all envelopes on page ${page} already processed, continuing pagination`);
+        page++;
+        continue;
       }
 
       for (const envelope of newEnvelopes) {
