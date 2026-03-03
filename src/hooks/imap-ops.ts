@@ -64,23 +64,25 @@ export async function runImapSetup(opts: ImapSetupOptions) {
     );
   }
 
-  // Validate account connectivity.
-  const accountCheck = await checkAccount({
-    account: opts.account,
-    config: opts.himalayaConfig,
-  });
-  if (!accountCheck.ok) {
-    throw new Error(
-      `himalaya account check failed: ${accountCheck.error}\nRun 'himalaya account configure ${opts.account}' to set up the account.`,
-    );
-  }
-
   const configSnapshot = await readConfigFileSnapshot();
   if (!configSnapshot.valid) {
     throw new Error(`Config invalid: ${CONFIG_PATH}`);
   }
 
   const baseConfig = configSnapshot.config;
+  const effectiveHimalayaConfig =
+    opts.himalayaConfig?.trim() || baseConfig.hooks?.imap?.himalayaConfig?.trim() || undefined;
+
+  // Validate account connectivity.
+  const accountCheck = await checkAccount({
+    account: opts.account,
+    config: effectiveHimalayaConfig,
+  });
+  if (!accountCheck.ok) {
+    throw new Error(
+      `himalaya account check failed: ${accountCheck.error}\nRun 'himalaya account configure ${opts.account}' to set up the account.`,
+    );
+  }
   const hooksPath = normalizeHooksPath(baseConfig.hooks?.path);
   const hookToken = opts.hookToken ?? baseConfig.hooks?.token ?? generateHookToken();
 
@@ -113,7 +115,7 @@ export async function runImapSetup(opts: ImapSetupOptions) {
         maxBytes,
         markSeen,
         hookUrl,
-        himalayaConfig: opts.himalayaConfig?.trim() || undefined,
+        himalayaConfig: effectiveHimalayaConfig,
         query,
       },
     },
