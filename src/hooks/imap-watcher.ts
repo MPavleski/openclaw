@@ -277,10 +277,11 @@ async function deliverToHook(cfg: ImapHookRuntimeConfig, payload: unknown): Prom
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    log.warn(`hook delivery failed (${response.status}): ${text.slice(0, 200)}`);
-  } else {
-    log.debug(`hook delivery succeeded: ${response.status}`);
+    const msg = `hook delivery failed (${response.status}): ${text.slice(0, 200)}`;
+    log.error(msg);
+    throw new Error(msg);
   }
+  log.debug(`hook delivery succeeded: ${response.status}`);
 }
 
 function truncateBody(body: string, maxBytes: number): string {
