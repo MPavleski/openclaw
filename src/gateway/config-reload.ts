@@ -49,6 +49,18 @@ const BASE_RELOAD_RULES: ReloadRule[] = [
   { prefix: "diagnostics.stuckSessionWarnMs", kind: "none" },
   { prefix: "hooks.gmail", kind: "hot", actions: ["restart-gmail-watcher"] },
   { prefix: "hooks.imap", kind: "hot", actions: ["restart-imap-watcher"] },
+  // Shared hooks config changes require restarting watchers that cache these values
+  {
+    prefix: "hooks.token",
+    kind: "hot",
+    actions: ["restart-gmail-watcher", "restart-imap-watcher"],
+  },
+  { prefix: "hooks.path", kind: "hot", actions: ["restart-gmail-watcher", "restart-imap-watcher"] },
+  {
+    prefix: "hooks.enabled",
+    kind: "hot",
+    actions: ["restart-gmail-watcher", "restart-imap-watcher"],
+  },
   { prefix: "hooks", kind: "hot", actions: ["reload-hooks"] },
   {
     prefix: "agents.defaults.heartbeat",
