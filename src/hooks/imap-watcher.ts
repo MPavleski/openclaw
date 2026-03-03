@@ -51,19 +51,19 @@ export async function startImapWatcher(
     return { started: false, reason: "hooks not enabled" };
   }
 
-  log.debug(`checking himalaya availability...`);
-  if (!isHimalayaAvailable()) {
-    log.debug("himalaya binary not found");
-    return { started: false, reason: "himalaya binary not found" };
-  }
-  log.debug("himalaya binary found");
-
   log.debug("resolving imap config");
   const resolved = resolveImapHookRuntimeConfig(cfg, overrides ?? {});
   if (!resolved.ok) {
     log.debug(`config resolution failed: ${resolved.error}`);
     return { started: false, reason: resolved.error };
   }
+
+  log.debug(`checking himalaya availability...`);
+  if (!isHimalayaAvailable()) {
+    log.debug("himalaya binary not found");
+    return { started: false, reason: "himalaya binary not found" };
+  }
+  log.debug("himalaya binary found");
 
   const runtimeConfig = resolved.value;
   log.debug(`config resolved successfully:`);
@@ -343,14 +343,15 @@ async function deliverToHook(cfg: ImapHookRuntimeConfig, payload: unknown): Prom
       body: payloadJson,
       signal: controller.signal,
     });
-    clearTimeout(timeout);
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
+      clearTimeout(timeout);
       const msg = `hook delivery failed (${response.status}): ${text.slice(0, 200)}`;
       log.error(msg);
       throw new Error(msg);
     }
+    clearTimeout(timeout);
     log.debug(`hook delivery succeeded: ${response.status}`);
   } catch (err) {
     clearTimeout(timeout);
