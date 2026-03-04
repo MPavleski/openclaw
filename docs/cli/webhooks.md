@@ -29,7 +29,7 @@ See [Gmail Pub/Sub documentation](/automation/gmail-pubsub) for details.
 ## IMAP
 
 ```bash
-openclaw webhooks imap setup --account my-email-account
+openclaw webhooks imap setup --account my-email-account --allowed-senders owner@example.com
 openclaw webhooks imap run
 ```
 

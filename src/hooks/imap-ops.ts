@@ -40,6 +40,7 @@ export type ImapSetupOptions = {
   hookToken?: string;
   himalayaConfig?: string;
   query?: string;
+  allowedSenders?: string[];
   json?: boolean;
 };
 
@@ -54,6 +55,7 @@ export type ImapRunOptions = {
   hookToken?: string;
   himalayaConfig?: string;
   query?: string;
+  allowedSenders?: string[];
 };
 
 export async function runImapSetup(opts: ImapSetupOptions) {
@@ -85,6 +87,10 @@ export async function runImapSetup(opts: ImapSetupOptions) {
   }
   const hooksPath = normalizeHooksPath(baseConfig.hooks?.path);
   const hookToken = opts.hookToken ?? baseConfig.hooks?.token ?? generateHookToken();
+  const allowedSenders = opts.allowedSenders ?? baseConfig.hooks?.imap?.allowedSenders;
+  if (!allowedSenders || allowedSenders.length === 0) {
+    throw new Error("IMAP allowed senders required (use --allowed-senders)");
+  }
 
   const folder = opts.folder ?? DEFAULT_IMAP_FOLDER;
   const pollIntervalSeconds = opts.pollInterval ?? DEFAULT_IMAP_POLL_INTERVAL_SECONDS;
@@ -117,6 +123,7 @@ export async function runImapSetup(opts: ImapSetupOptions) {
         hookUrl,
         himalayaConfig: effectiveHimalayaConfig,
         query,
+        allowedSenders,
       },
     },
   };
@@ -137,6 +144,7 @@ export async function runImapSetup(opts: ImapSetupOptions) {
     includeBody,
     maxBytes,
     query,
+    allowedSenders,
   };
 
   if (opts.json) {
@@ -173,9 +181,10 @@ export async function runImapService(opts: ImapRunOptions) {
     hookToken: opts.hookToken,
     himalayaConfig: opts.himalayaConfig,
     query: opts.query,
+    allowedSenders: opts.allowedSenders,
   };
 
-  const resolved = resolveImapHookRuntimeConfig(config, overrides);
+  const resolved = await resolveImapHookRuntimeConfig(config, overrides);
   if (!resolved.ok) {
     throw new Error(resolved.error);
   }

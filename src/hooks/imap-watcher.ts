@@ -61,7 +61,7 @@ export async function startImapWatcher(
   }
 
   log.debug("resolving imap config");
-  const resolved = resolveImapHookRuntimeConfig(cfg, overrides ?? {});
+  const resolved = await resolveImapHookRuntimeConfig(cfg, overrides ?? {});
   if (!resolved.ok) {
     log.debug(`config resolution failed: ${resolved.error}`);
     return { started: false, reason: resolved.error };
@@ -85,6 +85,7 @@ export async function startImapWatcher(
   log.debug(`  - query: ${runtimeConfig.query}`);
   log.debug(`  - himalayaConfig: ${runtimeConfig.himalayaConfig || "(default)"}`);
   log.debug(`  - hookUrl: ${runtimeConfig.hookUrl}`);
+  log.debug(`  - allowedSenders: ${runtimeConfig.allowedSenders.length}`);
 
   currentConfig = runtimeConfig;
   shuttingDown = false;
@@ -219,7 +220,21 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
         continue;
       }
 
-      for (const envelope of newEnvelopes) {
+      const allowedEnvelopes = newEnvelopes.filter((envelope) =>
+        isAllowedSender(envelope.from, cfg.allowedSenders),
+      );
+      if (allowedEnvelopes.length < newEnvelopes.length) {
+        log.debug(
+          `filtered ${newEnvelopes.length - allowedEnvelopes.length} envelopes by allowlist on page ${page}`,
+        );
+      }
+      if (allowedEnvelopes.length === 0) {
+        log.debug(`no allowlisted senders on page ${page}, continuing pagination`);
+        page++;
+        continue;
+      }
+
+      for (const envelope of allowedEnvelopes) {
         // Check generation before processing each envelope
         if (expectedGeneration !== generation) {
           log.debug(`stale poll cycle detected during envelope processing, aborting`);
@@ -399,4 +414,42 @@ function pruneSeenIds(): void {
   const keptIds = idsArray.slice(excess);
   seenIds = new Set(keptIds);
   log.debug(`pruneSeenIds: new size=${seenIds.size}`);
+}
+
+function isAllowedSender(from: string, allowedSenders: string[]): boolean {
+  const normalizedAllowed = allowedSenders.map((sender) => sender.toLowerCase().trim());
+  if (normalizedAllowed.length === 0) {
+    return false;
+  }
+  const normalizedFrom = from.toLowerCase().trim();
+  if (!normalizedFrom) {
+    return false;
+  }
+  const candidates = extractSenderEmails(normalizedFrom);
+  if (candidates.length > 0) {
+    return candidates.some((candidate) => normalizedAllowed.includes(candidate));
+  }
+  return normalizedAllowed.some((allowed) => matchesAllowedSender(normalizedFrom, allowed));
+}
+
+function extractSenderEmails(from: string): string[] {
+  const matches = from.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? [];
+  const normalized = matches.map((value) => value.toLowerCase().trim()).filter(Boolean);
+  return Array.from(new Set(normalized));
+}
+
+function matchesAllowedSender(from: string, allowed: string): boolean {
+  if (!allowed) {
+    return false;
+  }
+  if (from === allowed) {
+    return true;
+  }
+  if (from.includes(`<${allowed}>`)) {
+    return true;
+  }
+  if (from.startsWith(`${allowed} `)) {
+    return true;
+  }
+  return false;
 }

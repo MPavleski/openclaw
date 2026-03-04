@@ -140,6 +140,7 @@ export const HooksImapSchema = z
     allowUnsafeExternalContent: z.boolean().optional(),
     himalayaConfig: z.string().optional(),
     query: z.string().optional(),
+    allowedSenders: z.array(z.string().email()).min(1),
   })
   .strict()
   .optional();

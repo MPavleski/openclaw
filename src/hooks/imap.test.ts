@@ -15,6 +15,7 @@ const baseConfig = {
     token: "hook-token",
     imap: {
       account: "myaccount",
+      allowedSenders: ["owner@example.com"],
     },
   },
 } satisfies OpenClawConfig;
@@ -26,8 +27,10 @@ describe("imap hook config", () => {
     );
   });
 
-  it("resolves runtime config with defaults", () => {
-    const result = resolveImapHookRuntimeConfig(baseConfig, {});
+  it("resolves runtime config with defaults", async () => {
+    const result = await resolveImapHookRuntimeConfig(baseConfig, {
+      allowedSenders: ["owner@example.com"],
+    });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.account).toBe("myaccount");
@@ -38,33 +41,51 @@ describe("imap hook config", () => {
       expect(result.value.markSeen).toBe(true);
       expect(result.value.query).toBe(DEFAULT_IMAP_QUERY);
       expect(result.value.hookUrl).toBe(`http://127.0.0.1:${DEFAULT_GATEWAY_PORT}/hooks/imap`);
+      expect(result.value.allowedSenders).toContain("owner@example.com");
     }
   });
 
-  it("fails without hook token", () => {
-    const result = resolveImapHookRuntimeConfig({ hooks: { imap: { account: "myaccount" } } }, {});
+  it("fails without hook token", async () => {
+    const result = await resolveImapHookRuntimeConfig(
+      { hooks: { imap: { account: "myaccount", allowedSenders: ["owner@example.com"] } } },
+      { allowedSenders: ["owner@example.com"] },
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toContain("hooks.token missing");
     }
   });
 
-  it("fails without account", () => {
-    const result = resolveImapHookRuntimeConfig({ hooks: { token: "tok", imap: {} } }, {});
+  it("fails without account", async () => {
+    const result = await resolveImapHookRuntimeConfig(
+      { hooks: { token: "tok", imap: { allowedSenders: ["owner@example.com"] } } },
+      { allowedSenders: ["owner@example.com"] },
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toContain("imap account required");
     }
   });
 
-  it("applies overrides", () => {
-    const result = resolveImapHookRuntimeConfig(baseConfig, {
+  it("fails without allowed senders", async () => {
+    const result = await resolveImapHookRuntimeConfig(baseConfig, {
+      allowedSenders: [],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain("hooks.imap.allowedSenders required");
+    }
+  });
+
+  it("applies overrides", async () => {
+    const result = await resolveImapHookRuntimeConfig(baseConfig, {
       folder: "Sent",
       pollIntervalSeconds: 60,
       includeBody: false,
       maxBytes: 5000,
       markSeen: false,
       query: "from admin",
+      allowedSenders: ["owner@example.com"],
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -77,9 +98,10 @@ describe("imap hook config", () => {
     }
   });
 
-  it("clamps poll interval to minimum", () => {
-    const result = resolveImapHookRuntimeConfig(baseConfig, {
+  it("clamps poll interval to minimum", async () => {
+    const result = await resolveImapHookRuntimeConfig(baseConfig, {
       pollIntervalSeconds: 1,
+      allowedSenders: ["owner@example.com"],
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -87,9 +109,10 @@ describe("imap hook config", () => {
     }
   });
 
-  it("respects himalayaConfig override", () => {
-    const result = resolveImapHookRuntimeConfig(baseConfig, {
+  it("respects himalayaConfig override", async () => {
+    const result = await resolveImapHookRuntimeConfig(baseConfig, {
       himalayaConfig: "/custom/path.toml",
+      allowedSenders: ["owner@example.com"],
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -97,17 +120,18 @@ describe("imap hook config", () => {
     }
   });
 
-  it("resolves hookUrl from config when set", () => {
+  it("resolves hookUrl from config when set", async () => {
     const cfg: OpenClawConfig = {
       hooks: {
         token: "hook-token",
         imap: {
           account: "myaccount",
           hookUrl: "http://example.com/hooks/imap",
+          allowedSenders: ["owner@example.com"],
         },
       },
     };
-    const result = resolveImapHookRuntimeConfig(cfg, {});
+    const result = await resolveImapHookRuntimeConfig(cfg, {});
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.hookUrl).toBe("http://example.com/hooks/imap");

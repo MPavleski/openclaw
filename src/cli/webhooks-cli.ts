@@ -121,6 +121,10 @@ export function registerWebhooksCli(program: Command) {
     .command("setup")
     .description("Configure IMAP watcher + OpenClaw hooks")
     .requiredOption("--account <name>", "Himalaya account name")
+    .requiredOption(
+      "--allowed-senders <emails>",
+      "Comma-separated list of allowlisted sender emails",
+    )
     .option("--folder <name>", "IMAP folder to watch", DEFAULT_IMAP_FOLDER)
     .option(
       "--poll-interval <seconds>",
@@ -149,6 +153,7 @@ export function registerWebhooksCli(program: Command) {
     .command("run")
     .description("Run IMAP poll watcher loop")
     .option("--account <name>", "Himalaya account name")
+    .option("--allowed-senders <emails>", "Comma-separated list of allowlisted sender emails")
     .option("--folder <name>", "IMAP folder to watch")
     .option("--poll-interval <seconds>", "Poll interval in seconds")
     .option("--include-body", "Include email body content")
@@ -293,6 +298,7 @@ function parseImapSetupOptions(raw: Record<string, unknown>): ImapSetupOptions {
     hookToken: stringOption(raw.hookToken),
     himalayaConfig: stringOption(raw.himalayaConfig),
     query: stringOption(raw.query),
+    allowedSenders: parseAllowedSenders(raw.allowedSenders),
     json: Boolean(raw.json),
   };
 }
@@ -309,5 +315,17 @@ function parseImapRunOptions(raw: Record<string, unknown>): ImapRunOptions {
     hookToken: stringOption(raw.hookToken),
     himalayaConfig: stringOption(raw.himalayaConfig),
     query: stringOption(raw.query),
+    allowedSenders: parseAllowedSenders(raw.allowedSenders),
   };
+}
+
+function parseAllowedSenders(value: unknown): string[] | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const parts = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts : undefined;
 }

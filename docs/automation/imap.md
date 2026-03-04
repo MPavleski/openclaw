@@ -25,6 +25,9 @@ Example hook config (enable IMAP preset mapping):
     token: "OPENCLAW_HOOK_TOKEN",
     path: "/hooks",
     presets: ["imap"],
+    imap: {
+      allowedSenders: ["owner@example.com"],
+    },
   },
 }
 ```
@@ -69,6 +72,7 @@ To set a default model and thinking level specifically for IMAP hooks, add
 {
   hooks: {
     imap: {
+      allowedSenders: ["owner@example.com"],
       model: "openrouter/meta-llama/llama-3.3-70b-instruct:free",
       thinking: "off",
     },
@@ -83,6 +87,9 @@ Notes:
 - If `agents.defaults.models` is set, the IMAP model must be in the allowlist.
 - IMAP hook content is wrapped with external-content safety boundaries by default.
   To disable (dangerous), set `hooks.imap.allowUnsafeExternalContent: true`.
+- `hooks.imap.allowedSenders` is required. Messages from other senders are ignored.
+- The IMAP runtime also attempts to add the owner email from `USER.md` via an LLM-based
+  extraction (only when explicitly stated), and merges it into the allowlist.
 
 To customize payload handling further, add `hooks.mappings` or a JS/TS transform module
 under `~/.openclaw/hooks/transforms` (see [Webhooks](/automation/webhook)).
@@ -93,7 +100,8 @@ Use the OpenClaw helper to configure IMAP polling:
 
 ```bash
 openclaw webhooks imap setup \
-  --account my-email-account
+  --account my-email-account \
+  --allowed-senders owner@example.com
 ```
 
 The account name refers to a himalaya account. Run `himalaya account list` to see
@@ -126,6 +134,7 @@ openclaw webhooks imap setup --account myaccount --mark-seen=false
 ```bash
 openclaw webhooks imap setup \
   --account <name> \              # Required: himalaya account name
+  --allowed-senders <emails> \    # Required: comma-separated allowlist
   --folder <name> \               # IMAP folder (default: INBOX)
   --poll-interval <seconds> \     # Poll interval (default: 20)
   --include-body \                # Include body snippets (default: true)
@@ -145,6 +154,7 @@ Run the IMAP watcher manually (useful for testing or ad-hoc runs):
 ```bash
 openclaw webhooks imap run \
   --account <name> \              # himalaya account name
+  --allowed-senders <emails> \    # Required: comma-separated allowlist
   --folder <name> \               # IMAP folder
   --poll-interval <seconds> \     # Poll interval
   --include-body \                # Include body snippets
@@ -204,6 +214,7 @@ the IMAP watcher on boot:
     enabled: true,
     imap: {
       account: "my-email-account",
+      allowedSenders: ["owner@example.com"],
       folder: "INBOX",
       pollIntervalSeconds: 20,
       includeBody: true,
