@@ -80,6 +80,9 @@ export async function listEnvelopes(params: {
   );
   if (result.code !== 0) {
     const msg = result.stderr?.trim() || result.stdout?.trim() || "himalaya envelope list failed";
+    if (/page\s+\d+\s+out of bounds/i.test(msg)) {
+      return [];
+    }
     throw new Error(msg);
   }
 
