@@ -195,6 +195,7 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
       });
 
       log.debug(`retrieved ${envelopes.length} envelopes from himalaya page ${page}`);
+      const hasFullPage = envelopes.length === ENVELOPE_PAGE_SIZE;
 
       // Stop if no more envelopes on this page
       if (envelopes.length === 0) {
@@ -272,6 +273,12 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
         } catch (err) {
           log.error(`failed to process envelope ${envelope.id}: ${String(err)}`);
         }
+      }
+
+      if (!hasFullPage) {
+        log.debug(`page ${page} returned ${envelopes.length} envelopes; stopping pagination`);
+        hasMorePages = false;
+        break;
       }
 
       page++;
