@@ -124,12 +124,13 @@ export function resolveHookMappings(
   const imapAllowUnsafe = hooks?.imap?.allowUnsafeExternalContent;
   const mappings: HookMappingConfig[] = [];
   if (hooks?.mappings) {
-    // Apply IMAP allowUnsafeExternalContent to custom mappings that match IMAP path
+    // Apply IMAP allowUnsafeExternalContent as a fallback for matching mappings.
     const processedMappings = hooks.mappings.map((mapping) => {
       // Normalize path before comparison to match behavior in mappingMatches
       if (
         normalizeMatchPath(mapping.match?.path) === "imap" &&
-        typeof imapAllowUnsafe === "boolean"
+        typeof imapAllowUnsafe === "boolean" &&
+        typeof mapping.allowUnsafeExternalContent !== "boolean"
       ) {
         return { ...mapping, allowUnsafeExternalContent: imapAllowUnsafe };
       }
