@@ -66,10 +66,10 @@ export async function listEnvelopes(params: {
     args.push("-p", String(params.page));
   }
 
-  // Append query tokens (e.g. "flag unseen" → ["flag", "unseen"])
-  const queryTokens = params.query.trim().split(/\s+/).filter(Boolean);
-  if (queryTokens.length > 0) {
-    args.push(...queryTokens);
+  // Append query as-is to preserve quoted terms.
+  const query = params.query.trim();
+  if (query) {
+    args.push(query);
   }
 
   const cmdStr = args.join(" ");
