@@ -164,6 +164,82 @@ describe("stripMoonshotUnsupportedKeywords", () => {
     >;
     expect(profileProps.bio).toEqual({ type: "string" });
   });
+
+  it("inlines local $ref before stripping unsupported keywords", () => {
+    const cleaned = stripMoonshotUnsupportedKeywords({
+      type: "object",
+      properties: {
+        role: { $ref: "#/$defs/Role" },
+      },
+      $defs: {
+        Role: {
+          type: "string",
+          enum: ["admin", "viewer"],
+          minLength: 1,
+        },
+      },
+    }) as {
+      $defs?: unknown;
+      properties?: Record<string, unknown>;
+    };
+
+    expect(cleaned.$defs).toBeUndefined();
+    expect(cleaned.properties?.role).toEqual({
+      type: "string",
+      enum: ["admin", "viewer"],
+    });
+  });
+
+  it("preserves ref-level metadata when inlining local refs", () => {
+    const cleaned = stripMoonshotUnsupportedKeywords({
+      type: "object",
+      properties: {
+        status: {
+          $ref: "#/$defs/Status",
+          description: "Current status",
+        },
+      },
+      $defs: {
+        Status: {
+          type: "string",
+          enum: ["ready", "busy"],
+        },
+      },
+    }) as {
+      properties?: Record<string, unknown>;
+    };
+
+    expect(cleaned.properties?.status).toEqual({
+      type: "string",
+      enum: ["ready", "busy"],
+      description: "Current status",
+    });
+  });
+
+  it("supports legacy definitions refs", () => {
+    const cleaned = stripMoonshotUnsupportedKeywords({
+      type: "object",
+      properties: {
+        mode: { $ref: "#/definitions/Mode" },
+      },
+      definitions: {
+        Mode: {
+          type: "string",
+          enum: ["fast", "safe"],
+          format: "enum-like",
+        },
+      },
+    }) as {
+      definitions?: unknown;
+      properties?: Record<string, unknown>;
+    };
+
+    expect(cleaned.definitions).toBeUndefined();
+    expect(cleaned.properties?.mode).toEqual({
+      type: "string",
+      enum: ["fast", "safe"],
+    });
+  });
 });
 
 describe("isMoonshotProvider", () => {
