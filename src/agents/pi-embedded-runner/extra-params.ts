@@ -777,11 +777,7 @@ function createMoonshotThinkingWrapper(
             effectiveThinkingType === "enabled" &&
             !isMoonshotToolChoiceCompatible(payloadObj.tool_choice)
           ) {
-            // Prefer preserving explicit tool_choice intents (e.g. "required"
-            // or a named function tool choice) to keep tool execution reliable.
-            // Moonshot only rejects these when thinking is enabled, so disable
-            // thinking for this request instead of silently weakening tool choice.
-            payloadObj.thinking = { type: "disabled" };
+            payloadObj.tool_choice = "auto";
           }
         }
         originalOnPayload?.(payload);
