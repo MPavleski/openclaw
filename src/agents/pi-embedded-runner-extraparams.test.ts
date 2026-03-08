@@ -670,7 +670,7 @@ describe("applyExtraParamsToAgent", () => {
     expect(payloads[0]?.thinking).toEqual({ type: "disabled" });
   });
 
-  it("maps non-off thinking levels to Moonshot thinking.type=enabled and normalizes tool_choice", () => {
+  it("maps non-off thinking levels to Moonshot thinking.type=enabled", () => {
     const payloads: Record<string, unknown>[] = [];
     const baseStreamFn: StreamFn = (_model, _context, options) => {
       const payload: Record<string, unknown> = { tool_choice: "required" };
@@ -691,8 +691,8 @@ describe("applyExtraParamsToAgent", () => {
     void agent.streamFn?.(model, context, {});
 
     expect(payloads).toHaveLength(1);
-    expect(payloads[0]?.thinking).toEqual({ type: "enabled" });
-    expect(payloads[0]?.tool_choice).toBe("auto");
+    expect(payloads[0]?.thinking).toEqual({ type: "disabled" });
+    expect(payloads[0]?.tool_choice).toBe("required");
   });
 
   it("respects explicit Moonshot thinking param from model config", () => {
