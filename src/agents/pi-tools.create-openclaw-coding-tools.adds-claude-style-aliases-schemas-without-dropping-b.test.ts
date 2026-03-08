@@ -143,7 +143,10 @@ describe("createOpenClawCodingTools", () => {
         },
         required: ["email"],
       },
-      execute: async () => ({ content: [{ type: "text", text: "ok" }] }),
+      execute: async () => ({
+        content: [{ type: "text", text: "ok" }],
+        details: {},
+      }),
     };
 
     const assertCleaned = (provider: string, modelId: string) => {
@@ -182,7 +185,10 @@ describe("createOpenClawCodingTools", () => {
         },
         required: ["email"],
       },
-      execute: async () => ({ content: [{ type: "text", text: "ok" }] }),
+      execute: async () => ({
+        content: [{ type: "text", text: "ok" }],
+        details: {},
+      }),
     };
 
     const normalized = normalizeToolParameters(tool, {
