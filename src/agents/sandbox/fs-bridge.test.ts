@@ -46,6 +46,12 @@ function findCallByScriptFragment(fragment: string) {
   return mockedExecDockerRaw.mock.calls.find(([args]) => getDockerScript(args).includes(fragment));
 }
 
+function findCallsByScriptFragment(fragment: string) {
+  return mockedExecDockerRaw.mock.calls.filter(([args]) =>
+    getDockerScript(args).includes(fragment),
+  );
+}
+
 function dockerExecResult(stdout: string) {
   return {
     stdout: Buffer.from(stdout),
@@ -129,10 +135,12 @@ async function expectMkdirpAllowsExistingDirectory(params?: { forceBoundaryIoFal
 
     await expect(bridge.mkdirp({ filePath: "memory/kemik" })).resolves.toBeUndefined();
 
-    const mkdirCall = findCallByScriptFragment('mkdir -p -- "$1"');
+    const mkdirCall = findCallByScriptFragment('mkdir -p -- "$2"');
     expect(mkdirCall).toBeDefined();
-    const mkdirPath = mkdirCall ? getDockerPathArg(mkdirCall[0]) : "";
-    expect(mkdirPath).toBe("/workspace/memory/kemik");
+    const mkdirParent = mkdirCall ? getDockerArg(mkdirCall[0], 1) : "";
+    const mkdirBase = mkdirCall ? getDockerArg(mkdirCall[0], 2) : "";
+    expect(mkdirParent).toBe("/workspace/memory");
+    expect(mkdirBase).toBe("kemik");
   });
 }
 
@@ -244,6 +252,58 @@ describe("sandbox fs bridge shell compatibility", () => {
     expect(scripts.some((script) => script.includes('mv -f -- "$1" "$2"'))).toBe(true);
   });
 
+  it("anchors mkdirp operations on canonical parent + basename", async () => {
+    const bridge = createSandboxFsBridge({ sandbox: createSandbox() });
+
+    await bridge.mkdirp({ filePath: "nested/leaf" });
+
+    const mkdirCall = findCallByScriptFragment('mkdir -p -- "$2"');
+    expect(mkdirCall).toBeDefined();
+    const args = mkdirCall?.[0] ?? [];
+    expect(getDockerArg(args, 1)).toBe("/workspace/nested");
+    expect(getDockerArg(args, 2)).toBe("leaf");
+    expect(args).not.toContain("/workspace/nested/leaf");
+
+    const canonicalCalls = findCallsByScriptFragment('readlink -f -- "$cursor"');
+    expect(
+      canonicalCalls.some(([callArgs]) => getDockerArg(callArgs, 1) === "/workspace/nested"),
+    ).toBe(true);
+  });
+
+  it("anchors remove operations on canonical parent + basename", async () => {
+    const bridge = createSandboxFsBridge({ sandbox: createSandbox() });
+
+    await bridge.remove({ filePath: "nested/file.txt" });
+
+    const removeCall = findCallByScriptFragment('rm -f -- "$2"');
+    expect(removeCall).toBeDefined();
+    const args = removeCall?.[0] ?? [];
+    expect(getDockerArg(args, 1)).toBe("/workspace/nested");
+    expect(getDockerArg(args, 2)).toBe("file.txt");
+    expect(args).not.toContain("/workspace/nested/file.txt");
+
+    const canonicalCalls = findCallsByScriptFragment('readlink -f -- "$cursor"');
+    expect(
+      canonicalCalls.some(([callArgs]) => getDockerArg(callArgs, 1) === "/workspace/nested"),
+    ).toBe(true);
+  });
+
+  it("anchors rename operations on canonical parents + basenames", async () => {
+    const bridge = createSandboxFsBridge({ sandbox: createSandbox() });
+
+    await bridge.rename({ from: "from.txt", to: "nested/to.txt" });
+
+    const renameCall = findCallByScriptFragment('mv -- "$3" "$2/$4"');
+    expect(renameCall).toBeDefined();
+    const args = renameCall?.[0] ?? [];
+    expect(getDockerArg(args, 1)).toBe("/workspace");
+    expect(getDockerArg(args, 2)).toBe("/workspace/nested");
+    expect(getDockerArg(args, 3)).toBe("from.txt");
+    expect(getDockerArg(args, 4)).toBe("to.txt");
+    expect(args).not.toContain("/workspace/from.txt");
+    expect(args).not.toContain("/workspace/nested/to.txt");
+  });
+
   it("re-validates target before final rename and cleans temp file on failure", async () => {
     mockedOpenBoundaryFile
       .mockImplementationOnce(async () => ({ ok: false, reason: "path" }))
@@ -289,7 +349,8 @@ describe("sandbox fs bridge shell compatibility", () => {
       await expect(bridge.mkdirp({ filePath: "memory/kemik" })).rejects.toThrow(
         /cannot create directories/i,
       );
-      expect(mockedExecDockerRaw).not.toHaveBeenCalled();
+      const scripts = getScriptsFromCalls();
+      expect(scripts.some((script) => script.includes('mkdir -p -- "$2"'))).toBe(false);
     });
   });
 

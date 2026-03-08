@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import { openBoundaryFile } from "../../infra/boundary-file-read.js";
 import { PATH_ALIAS_POLICIES, type PathAliasPolicy } from "../../infra/path-alias-guards.js";
 import type { SafeOpenSyncAllowedType } from "../../infra/safe-open-sync.js";
@@ -29,6 +30,11 @@ type PathSafetyOptions = {
 type PathSafetyCheck = {
   target: SandboxResolvedFsPath;
   options: PathSafetyOptions;
+};
+
+type AnchoredSandboxEntry = {
+  canonicalParentPath: string;
+  basename: string;
 };
 
 export type SandboxResolvedPath = {
@@ -149,6 +155,7 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
   async mkdirp(params: { filePath: string; cwd?: string; signal?: AbortSignal }): Promise<void> {
     const target = this.resolveResolvedPath(params);
     this.ensureWriteAccess(target, "create directories");
+    const anchoredTarget = await this.resolveAnchoredSandboxEntry(target);
     await this.runCheckedCommand({
       checks: [
         {
@@ -160,8 +167,8 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
           },
         },
       ],
-      script: 'set -eu; mkdir -p -- "$1"',
-      args: [target.containerPath],
+      script: 'set -eu\ncd -- "$1"\nmkdir -p -- "$2"',
+      args: [anchoredTarget.canonicalParentPath, anchoredTarget.basename],
       signal: params.signal,
     });
   }
@@ -175,6 +182,7 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
   }): Promise<void> {
     const target = this.resolveResolvedPath(params);
     this.ensureWriteAccess(target, "remove files");
+    const anchoredTarget = await this.resolveAnchoredSandboxEntry(target);
     const flags = [params.force === false ? "" : "-f", params.recursive ? "-r" : ""].filter(
       Boolean,
     );
@@ -191,8 +199,8 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
         },
       ],
       recheckBeforeCommand: true,
-      script: `set -eu; ${rmCommand} -- "$1"`,
-      args: [target.containerPath],
+      script: `set -eu\ncd -- "$1"\n${rmCommand} -- "$2"`,
+      args: [anchoredTarget.canonicalParentPath, anchoredTarget.basename],
       signal: params.signal,
     });
   }
@@ -207,6 +215,8 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
     const to = this.resolveResolvedPath({ filePath: params.to, cwd: params.cwd });
     this.ensureWriteAccess(from, "rename files");
     this.ensureWriteAccess(to, "rename files");
+    const anchoredFrom = await this.resolveAnchoredSandboxEntry(from);
+    const anchoredTo = await this.resolveAnchoredSandboxEntry(to);
     await this.runCheckedCommand({
       checks: [
         {
@@ -226,9 +236,13 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
         },
       ],
       recheckBeforeCommand: true,
-      script:
-        'set -eu; dir=$(dirname -- "$2"); if [ "$dir" != "." ]; then mkdir -p -- "$dir"; fi; mv -- "$1" "$2"',
-      args: [from.containerPath, to.containerPath],
+      script: ["set -eu", 'mkdir -p -- "$2"', 'cd -- "$1"', 'mv -- "$3" "$2/$4"'].join("\n"),
+      args: [
+        anchoredFrom.canonicalParentPath,
+        anchoredTo.canonicalParentPath,
+        anchoredFrom.basename,
+        anchoredTo.basename,
+      ],
       signal: params.signal,
     });
   }
@@ -414,6 +428,24 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
       throw new Error(`Failed to resolve canonical sandbox path: ${params.containerPath}`);
     }
     return normalizeContainerPath(canonical);
+  }
+
+  private async resolveAnchoredSandboxEntry(
+    target: SandboxResolvedFsPath,
+  ): Promise<AnchoredSandboxEntry> {
+    const basename = path.posix.basename(target.containerPath);
+    if (!basename || basename === "." || basename === "/") {
+      throw new Error(`Invalid sandbox entry target: ${target.containerPath}`);
+    }
+    const parentPath = normalizeContainerPath(path.posix.dirname(target.containerPath));
+    const canonicalParentPath = await this.resolveCanonicalContainerPath({
+      containerPath: parentPath,
+      allowFinalSymlinkForUnlink: false,
+    });
+    return {
+      canonicalParentPath,
+      basename,
+    };
   }
 
   private async writeFileToTempPath(params: {
