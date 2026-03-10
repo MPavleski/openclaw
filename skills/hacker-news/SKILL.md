@@ -9,7 +9,7 @@ description: "Extract and summarize current stories from Hacker News (news.ycomb
 
 Use this skill to gather the current top stories from Hacker News and turn them into short, clean summaries.
 
-Default behavior: extract recent story links from `news.ycombinator.com`, follow each story to its linked article and HN comments page, then write a **two-paragraph summary per story**. Prefer standard front-page stories with clear news or technical substance. Skip jobs, repeated links, dead pages, and low-signal threads unless the user asks for them.
+Default behavior: use the OpenClaw `browser` tool or `web_fetch` to extract recent story links from `news.ycombinator.com`, follow each story to its linked article and HN comments page, then write a **two-paragraph summary per story**. Prefer browser when navigation or thread context matters, and `web_fetch` when the page structure is simple and readable. Prefer standard front-page stories with clear news or technical substance. Skip jobs, repeated links, dead pages, and low-signal threads unless the user asks for them.
 
 ## Source Pattern
 
@@ -68,9 +68,20 @@ Treat these differently. By default, include standard stories plus notable `Ask 
    - Paragraph 1: what the linked story or HN post is about
    - Paragraph 2: why it matters on HN, what the discussion focused on, and any notable skepticism, praise, or technical context
 
+## Browser Tool Policy
+
+Prefer the OpenClaw `browser` tool for interactive navigation and link discovery when working across Hacker News listing pages, item threads, and linked articles.
+
+Rules:
+
+- use `browser` when the task benefits from preserving on-page order, opening several HN items, or inspecting discussion context interactively
+- use `web_fetch` for lightweight readable extraction of HN listing pages, item pages, or linked articles when the content is already known and browser interactivity is unnecessary
+- prefer `browser` first if there is any ambiguity about page structure, ranking order, or thread navigation
+- do not pretend browser access happened if it did not; fall back explicitly to `web_fetch`
+
 ## Listing Page Collection
 
-Use `web_fetch` for Hacker News listing pages. The HTML is lightweight and usually readable without browser automation. Use `browser` only if rendering or navigation becomes unreliable.
+Use `web_fetch` for Hacker News listing pages when the structure is straightforward. Prefer `browser` if ordering, navigation, or thread inspection becomes ambiguous.
 
 Extraction heuristic:
 

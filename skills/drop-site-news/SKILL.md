@@ -9,7 +9,7 @@ description: "Extract and summarize current reporting from Drop Site News (drops
 
 Use this skill to gather the latest editorial stories from Drop Site News and turn them into short, clean summaries.
 
-Default behavior: extract recent `/p/` article links from the homepage, fetch each article page, then write a **two-paragraph summary per article**. Prefer reported news features and analysis pieces. Skip site chrome, donation asks, share links, archive navigation, and duplicate teaser cards.
+Default behavior: use the OpenClaw `browser` tool to extract recent `/p/` article links from the homepage, then use `web_fetch` on each article page and write a **two-paragraph summary per article**. Prefer reported news features and analysis pieces. Skip site chrome, donation asks, share links, archive navigation, and duplicate teaser cards.
 
 ## Source Pattern
 
@@ -43,6 +43,17 @@ Useful patterns:
 8. Write a **two-paragraph summary** for each article:
    - Paragraph 1: what happened, who is involved, and the core claim/reporting
    - Paragraph 2: why it matters, what evidence/context the article adds, and any unresolved implications
+
+## Browser Tool Policy
+
+Use the OpenClaw `browser` tool as the primary path for homepage discovery and link selection on Drop Site News.
+
+Rules:
+
+- prefer `browser` for scanning the homepage, identifying real article cards, preserving visual order, and avoiding navigation/chrome noise
+- use `web_fetch` for full article extraction after the article URL is known
+- if browser rendering is degraded, fall back to `web_fetch` for homepage extraction and state that the fallback was used
+- do not treat raw site HTML alone as authoritative when the homepage layout is ambiguous or heavily duplicated
 
 ## Homepage Collection
 

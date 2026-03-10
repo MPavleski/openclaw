@@ -1,6 +1,6 @@
 ---
 name: unified-news-digest
-description: "Aggregate and curate current news across the Drop Site News, Hacker News, Zero Hedge, and X/Twitter news skills. Use when producing a single merged news brief from all four sources, following hyperlinks when available, deduplicating overlapping stories across sources, balancing global news with tech/AI/robotics coverage sourced primarily from the X Following feed and secondarily from Hacker News, and writing the final digest to workspace/news/YYYYMMDD_HH.md with workspace/news/latest.md symlinked to the newest file. Best for: (1) daily or ad-hoc cross-source news digests, (2) merging the same story reported across sources, (3) preserving article/tweet/HN links for later reading, and (4) maintaining a rolling latest digest file in the workspace."
+description: "Aggregate and curate current news across the Drop Site News, Hacker News, Zero Hedge, and X/Twitter news skills. Use when producing a single merged news brief from all four sources, following hyperlinks when available, deduplicating overlapping stories across sources, balancing global news with tech/AI/robotics coverage sourced primarily from X/Twitter news and secondarily from Hacker News, and writing the final digest to workspace/news/YYYYMMDD_HH.md with workspace/news/latest.md symlinked to the newest file. Best for: (1) daily or ad-hoc cross-source news digests, (2) merging the same story reported across sources, (3) preserving article/tweet/HN links for later reading, and (4) maintaining a rolling latest digest file in the workspace."
 ---
 
 # Unified News Digest
@@ -12,9 +12,9 @@ Source skills:
 - `drop-site-news`
 - `hacker-news`
 - `zerohedge`
-- `twitter-news` or `x-following-news`
+- `x-news`
 
-Default behavior: gather candidate items from all four sources, follow links to source material when available, summarize each retained item, merge duplicate/overlapping stories across sources, rank by importance and interest, then write a single digest file in `workspace/news` and update `latest.md` to point at it.
+Default behavior: gather candidate items from all four sources using browser-first discovery, follow links to source material when available, summarize each retained item, merge duplicate/overlapping stories across sources, rank by importance and interest, then write a single digest file in `workspace/news` and update `latest.md` to point at it.
 
 ## Output Contract
 
@@ -37,7 +37,7 @@ Aim for this balance:
 
 - **Global News:** 8-12 items
 - **Tech / AI / Robotics News:** 8-12 items
-  - **primary source: X Following / X news**
+  - **primary source: X / Twitter news**
   - **secondary source: Hacker News**
 - **Interesting Reads from Hacker News:** 3-6 items
 
@@ -49,13 +49,24 @@ If one bucket is weak on a given run:
 
 Do not stop at 10 merely because the top 10 are strong. Fill toward the target range when credible items exist.
 
+## Browser Tool Policy
+
+Use the OpenClaw `browser` tool as the default interactive collection path across the source skills, especially for homepage/feed discovery and link selection.
+
+Rules:
+
+- prefer browser-first collection for X/Twitter, Drop Site News, and Zero Hedge discovery
+- use browser or `web_fetch` for Hacker News depending on whether interactive thread/navigation context is needed
+- use `web_fetch` mainly for readable extraction of article pages after discovery
+- if one source must fall back away from browser collection, say so in the digest when it materially affects confidence or coverage
+
 ## Workflow
 
 1. Run or emulate the four source skills:
    - Drop Site homepage/article digest
    - Hacker News front page/item digest
    - Zero Hedge homepage/article digest
-   - X Following/news digest
+   - X/Twitter news digest
 2. Collect candidate items from each source with these fields when available:
    - title
    - source name
@@ -95,7 +106,7 @@ Prefer cross-source or source-linked items when possible.
 
 ### Tech / AI / Robotics News
 
-Use **X Following as the primary feeder** for this section.
+Use **X/Twitter news as the primary feeder** for this section.
 Use **Hacker News as the secondary feeder** when X coverage is thin, duplicative, or lacks enough high-quality link-backed items.
 
 Prioritize from X:
@@ -172,7 +183,7 @@ Write markdown in this structure:
 ```markdown
 # Unified News Digest — YYYY-MM-DD HH:00
 
-Generated from: Drop Site News, Hacker News, Zero Hedge, X Following
+Generated from: Drop Site News, Hacker News, Zero Hedge, X/Twitter
 Total reviewed sources: 4
 Final curated items: N
 
@@ -265,7 +276,7 @@ items = [];
 items.push(...collectDropSite());
 items.push(...collectHackerNews());
 items.push(...collectZeroHedge());
-items.push(...collectXFollowing());
+items.push(...collectXNews());
 
 items = items.map(enrichLinksAndContext);
 merged = mergeSameStory(items);

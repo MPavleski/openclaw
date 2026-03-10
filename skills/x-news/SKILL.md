@@ -1,15 +1,15 @@
 ---
-name: twitter-news
+name: x-news
 description: "Extract and summarize current news from X/Twitter feeds by following links, reading source material, and filtering out shitposts and non-news. Use when scanning the X home timeline, Following feed, lists, profiles, or tweet URLs; collecting substantive posts; following linked articles, papers, release notes, repos, or threads; and producing concise two-paragraph summaries per retained news item in the same style as the Drop Site News and Hacker News skills. Best for: (1) tech/AI/robotics/current-product news from X, (2) story-by-story summaries that combine the source link with tweet context, (3) filtering out memes, jokes, vanity posts, and engagement bait, and (4) summarizing individual tweets, threads, or linked news items."
 ---
 
-# Twitter / X News
+# X News
 
 ## Overview
 
-Use this skill to extract actual news from X/Twitter and turn it into short, clean summaries.
+Use this skill to extract actual news from X/Twitter and turn it into short, clean summaries. Organize retained items using agent judgment, not a clustering script.
 
-Default behavior: collect posts from the requested feed or account, filter aggressively for substantive news, follow external links when present, inspect quoted/context tweets when necessary, then write a **two-paragraph summary per retained news item**. Do not summarize the feed as vibes. Keep real developments; drop shitposts.
+Default behavior: use the OpenClaw `browser` tool to collect posts from the requested feed or account, filter aggressively for substantive news, follow external links when present, inspect quoted/context tweets when necessary, then write a **two-paragraph summary per retained news item**. Do not summarize the feed as vibes. Keep real developments; drop shitposts.
 
 ## Priority Lens
 
@@ -73,6 +73,18 @@ Non-news/noise types:
 8. Write a **two-paragraph summary per retained item**:
    - Paragraph 1: what happened according to the source material or primary tweet/thread
    - Paragraph 2: why it matters, what evidence/support exists, and how the X post(s) frame or validate it
+
+## Browser Tool Policy
+
+Use the OpenClaw `browser` tool as the primary collection path for X/Twitter.
+
+Rules:
+
+- prefer `browser` over `web_fetch` for X timeline discovery, tweet opening, tab switching, and thread/context inspection
+- use the OpenClaw-managed browser profile when available; use an attached Chrome relay tab when that is the authenticated path
+- use short browser interactions and incremental collection steps rather than one giant page script
+- use `web_fetch` only for external linked articles/pages after they are discovered from X, not as the primary way to read X itself
+- if the authenticated X session is unavailable, say so explicitly rather than pretending the feed was reviewed
 
 ## Collection Rules
 
@@ -161,6 +173,8 @@ If multiple posts discuss the same event:
 ## Deduplication and Grouping
 
 Default unit of output: **one summary per retained news item**.
+
+Use agent judgment to decide whether posts belong to the same story. Do not rely on any external clustering script or pre-baked grouping heuristic beyond the rules in this skill.
 
 Group posts together only when they are clearly about the same underlying event and materially overlap:
 

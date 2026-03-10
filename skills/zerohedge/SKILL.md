@@ -9,7 +9,7 @@ description: "Extract and summarize current non-premium Zero Hedge stories (zero
 
 Use this skill to gather the latest editorial stories from Zero Hedge and turn them into short, clean summaries.
 
-Default behavior: extract current non-premium editorial article links from the homepage, fetch each article page, then write a **two-paragraph summary per article**. Prefer main newsroom/editorial pieces. Skip premium blocks, contributor promotions, partner content, navigation, and duplicate teaser cards unless the user asks for them.
+Default behavior: use the OpenClaw `browser` tool to extract current non-premium editorial article links from the homepage, then use `web_fetch` on each article page and write a **two-paragraph summary per article**. Prefer main newsroom/editorial pieces. Skip premium blocks, contributor promotions, partner content, navigation, and duplicate teaser cards unless the user asks for them.
 
 ## Source Pattern
 
@@ -60,6 +60,17 @@ Treat only main editorial articles as the default source set unless the user ask
 7. Write a **two-paragraph summary** for each article:
    - Paragraph 1: what happened, who is involved, and the core claim/reporting
    - Paragraph 2: why it matters, what evidence/context the article adds, and any unresolved implications
+
+## Browser Tool Policy
+
+Use the OpenClaw `browser` tool as the primary path for Zero Hedge homepage discovery.
+
+Rules:
+
+- prefer `browser` for homepage scanning, preserving visual order, and separating editorial articles from contributor, partner, premium, or utility blocks
+- use `web_fetch` for individual article extraction after the article URL is known
+- if browser rendering is unavailable or degraded, fall back to `web_fetch` for homepage extraction and note the reduced confidence
+- do not rely on brittle exact class-name matching when a browser snapshot can reveal the visible structure directly
 
 ## Homepage Collection
 
