@@ -12,7 +12,7 @@ Docs: https://docs.openclaw.ai
 - Exec/child commands: mark child command environments with `OPENCLAW_CLI` so subprocesses can detect when they were launched from the OpenClaw CLI. (#41411) Thanks @vincentkoc.
 - iOS/Home canvas: add a bundled welcome screen with a live agent overview that refreshes on connect, reconnect, and foreground return, and move the compact connection pill off the top-left canvas overlay. (#42456) Thanks @ngutman.
 - iOS/Home canvas: replace floating controls with a docked toolbar, make the bundled home scaffold adapt to smaller phones, and open chat in the resolved main session instead of a synthetic `ios` session. (#42456) Thanks @ngutman.
-- Memory/Gemini: add `gemini-embedding-2-preview` memory-search support with configurable output dimensions and automatic reindexing when the configured dimensions change. (#42501) thanks @BillChirico.
+- Memory/Gemini: add `gemini-embedding-2-preview` memory-search support with configurable output dimensions and automatic reindexing when the configured dimensions change. (#42501) Thanks @BillChirico and @gumadeiras.
 - Discord/auto threads: add `autoArchiveDuration` channel config for auto-created threads so Discord thread archiving can stay at 1 hour, 1 day, 3 days, or 1 week instead of always using the 1-hour default. (#35065) Thanks @davidguttman.
 - OpenCode/onboarding: add new OpenCode Go provider, treat Zen and Go as one OpenCode setup in the wizard/docs while keeping the runtime providers split, store one shared OpenCode key for both profiles, and stop overriding the built-in `opencode-go` catalog routing. (#42313) Thanks @ImLukeF and @vincentkoc.
 - macOS/chat UI: add a chat model picker, persist explicit thinking-level selections across relaunch, and harden provider-aware session model sync for the shared chat composer. (#42314) Thanks @ImLukeF.
@@ -107,6 +107,9 @@ Docs: https://docs.openclaw.ai
 - Telegram/config schema: accept `channels.telegram.actions.editMessage` and `createForumTopic` in strict config validation so existing Telegram action toggles no longer fail as unrecognized keys. (#35498) Thanks @ingyukoh.
 - Agents/cooldowns: default cooldown windows with no recorded failure history to `unknown` instead of `rate_limit`, avoiding false API rate-limit warnings while preserving cooldown recovery probes. (#42911) Thanks @VibhorGautam.
 - Discord/config typing: expose channel-level `autoThread` on the canonical guild-channel config type so strict config loading matches the existing Discord schema and runtime behavior. (#35608) Thanks @ingyukoh.
+- Agents/error rendering: ignore stale assistant `errorMessage` fields on successful turns so background/tool-side failures no longer prepend synthetic billing errors over valid replies. (#40616) Thanks @ingyukoh.
+- Agents/fallback: recognize Venice `402 Insufficient USD or Diem balance` billing errors so configured model fallbacks trigger instead of surfacing the raw provider error. (#43205) Thanks @Squabble9.
+- Dependencies: refresh workspace dependencies except the pinned Carbon package, and harden ACP session-config writes against non-string SDK values so newer ACP clients fail fast instead of tripping type/runtime mismatches.
 
 ## 2026.3.8
 
@@ -180,6 +183,7 @@ Docs: https://docs.openclaw.ai
 - SecretRef/models: harden custom/provider secret persistence and reuse across models.json snapshots, merge behavior, runtime headers, and secret audits. (#42554) Thanks @joshavant.
 - macOS/browser proxy: serialize non-GET browser proxy request bodies through `AnyCodable.foundationValue` so nested JSON bodies no longer crash the macOS app with `Invalid type in JSON write (__SwiftValue)`. (#43069) Thanks @Effet.
 - CLI/skills tables: keep terminal table borders aligned for wide graphemes, use full reported terminal width, and switch a few ambiguous skill icons to Terminal-safe emoji so `openclaw skills` renders more consistently in Terminal.app and iTerm. Thanks @vincentkoc.
+- Memory/Gemini: normalize returned Gemini embeddings across direct query, direct batch, and async batch paths so memory search uses consistent vector handling for Gemini too. (#43409) Thanks @gumadeiras.
 
 ## 2026.3.7
 
