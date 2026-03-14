@@ -1,6 +1,6 @@
 ---
 name: unified-news-digest
-description: "Aggregate and curate current news across the Drop Site News, Hacker News, Zero Hedge, and X/Twitter news skills. Use when producing a single merged news brief from all four sources, following hyperlinks when available, deduplicating overlapping stories across sources, balancing global news with tech/AI/robotics coverage sourced primarily from X/Twitter news and secondarily from Hacker News, and writing the final digest to workspace/news/YYYYMMDD_HH.md with workspace/news/latest.md symlinked to the newest file. Best for: (1) daily or ad-hoc cross-source news digests, (2) merging the same story reported across sources, (3) preserving article/tweet/HN links for later reading, and (4) maintaining a rolling latest digest file in the workspace."
+description: "Aggregate and curate current news across the Drop Site News, Hacker News, Zero Hedge, and X/Twitter news skills. Use when producing a single merged news brief from all four sources, following hyperlinks when available, deduplicating overlapping stories across sources, balancing global news with tech/AI/robotics coverage sourced primarily from X/Twitter news and secondarily from Hacker News, writing the digest to workspace/news/YYYYMMDD_HH.md, and also rendering a formatted standalone HTML version via the markdown-html-report skill with latest.md and latest.html updated to the newest outputs. Best for: (1) daily or ad-hoc cross-source news digests, (2) merging the same story reported across sources, (3) preserving article/tweet/HN links for later reading, and (4) maintaining rolling latest Markdown and HTML digest files in the workspace."
 ---
 
 # Unified News Digest
@@ -14,19 +14,25 @@ Source skills:
 - `zerohedge`
 - `x-news`
 
-Default behavior: gather candidate items from all four sources using browser-first discovery, follow links to source material when available, summarize each retained item, merge duplicate/overlapping stories across sources, rank by importance and interest, then write a single digest file in `workspace/news` and update `latest.md` to point at it.
+Default behavior: gather candidate items from all four sources using browser-first discovery, follow links to source material when available, summarize each retained item, merge duplicate/overlapping stories across sources, rank by importance and interest, then write a single digest markdown file in `workspace/news`, render a formatted standalone HTML version via the `markdown-html-report` skill, and update both `latest.md` and `latest.html` to point at the newest outputs.
+
+Collection is mandatory for all four sources on every run. Do not silently skip a source because the first three produced enough material. Attempt collection from Drop Site News, Hacker News, Zero Hedge, and X/Twitter each time; if one source is unavailable, blocked, or yields no credible items, record that explicitly in a short collection note and continue.
 
 ## Output Contract
 
 Always write the digest to:
 
 - `news/YYYYMMDD_HH.md`
+- `news/YYYYMMDD_HH.html`
 
 Always update:
 
-- `news/latest.md` → symlink to the newest digest file
+- `news/latest.md` → symlink to the newest markdown digest file
+- `news/latest.html` → symlink to the newest HTML digest file
 
 Use 24-hour local time in the workspace timezone.
+
+Render the HTML version by applying the `markdown-html-report` skill to the just-written markdown digest. Use the same timestamp stem for both files so `20260314_05.md` and `20260314_05.html` are paired outputs of the same run.
 
 ## Target Mix and Count
 
@@ -67,7 +73,12 @@ Rules:
    - Hacker News front page/item digest
    - Zero Hedge homepage/article digest
    - X/Twitter news digest
-2. Collect candidate items from each source with these fields when available:
+2. Confirm collection status for each source before drafting the digest:
+   - `collected`: source reviewed and at least one credible candidate retained or rejected after inspection
+   - `empty`: source reviewed but no credible candidates found
+   - `degraded`: source partially reviewed due to access/rendering/rate-limit issues
+   - `failed`: source could not be collected
+3. Collect candidate items from each source with these fields when available:
    - title
    - source name
    - category bucket: `global-news`, `tech-ai-robotics`, or `interesting-read`
@@ -76,21 +87,22 @@ Rules:
    - short factual summary
    - why-it-matters context
    - timestamp or relative freshness
-3. Follow hyperlinks whenever useful and available:
+4. Follow hyperlinks whenever useful and available:
    - for HN, prefer linked article + HN item page
    - for X, prefer external source + lead tweet URL
    - for Drop Site and Zero Hedge, prefer the article page itself
-4. Deduplicate and merge overlapping items across sources.
-5. Rank retained items by a blend of:
+5. Deduplicate and merge overlapping items across sources.
+6. Rank retained items by a blend of:
    - objective importance
    - cross-source confirmation
    - novelty / timeliness
    - likely interest to the user
    - article quality for HN-only curiosities
-6. Allocate items into the target buckets.
-7. Produce a final curated list of **maximum 30 items**.
-8. Write the digest markdown file.
-9. Update `latest.md` symlink.
+7. Allocate items into the target buckets.
+8. Produce a final curated list of **maximum 30 items**.
+9. Write the digest markdown file.
+10. Render the markdown into a formatted standalone HTML report by using the `markdown-html-report` skill.
+11. Update `latest.md` and `latest.html` symlinks.
 
 ## Bucket Rules
 
@@ -184,7 +196,8 @@ Write markdown in this structure:
 # Unified News Digest — YYYY-MM-DD HH:00
 
 Generated from: Drop Site News, Hacker News, Zero Hedge, X/Twitter
-Total reviewed sources: 4
+Collection: Drop Site <status>; Hacker News <status>; Zero Hedge <status>; X/Twitter <status>
+Collection notes: <very short note only if needed; otherwise omit>
 Final curated items: N
 
 ## Top Global News
@@ -228,6 +241,9 @@ Requirements:
 
 - maximum 30 total items across all sections
 - target 18-24 items by default when credible material exists
+- collect from all four sources on every run unless a source is genuinely unavailable
+- include a single concise `Collection:` line covering all four sources
+- include `Collection notes:` only when needed, and keep it terse
 - exactly two paragraphs per item
 - include source labels and hyperlinks when available
 - use one canonical item per merged story
@@ -259,13 +275,18 @@ After generating the digest:
 
 1. ensure `news/` exists in the workspace
 2. write `news/YYYYMMDD_HH.md`
-3. replace `news/latest.md` with a symlink to that filename
+3. use the `markdown-html-report` skill to render `news/YYYYMMDD_HH.html` from that markdown file
+4. replace `news/latest.md` with a symlink to the markdown filename
+5. replace `news/latest.html` with a symlink to the HTML filename
 
-Use relative symlink target inside the `news/` directory, e.g.:
+Use relative symlink targets inside the `news/` directory, e.g.:
 
 - `latest.md -> 20260310_10.md`
+- `latest.html -> 20260310_10.html`
 
-If symlink creation is unavailable, overwrite `latest.md` with the same content as a fallback, but prefer a real symlink.
+When invoking the HTML renderer, keep the document title aligned with the digest title, e.g. `Unified News Digest — YYYY-MM-DD HH:00`, and pass the local-date metadata when supported by the renderer.
+
+If symlink creation is unavailable, overwrite `latest.md` and `latest.html` with the corresponding file contents as a fallback, but prefer real symlinks.
 
 ## Minimal Aggregation Logic
 
@@ -291,13 +312,17 @@ buckets = allocate({
 finalItems = balanceAndBackfill(buckets).slice(0, 30);
 
 writeDigest(finalItems, (path = `news/${timestampHour}.md`));
-updateLatestSymlink();
+renderHtmlFromMarkdown(`news/${timestampHour}.md`, `news/${timestampHour}.html`);
+updateLatestSymlinks();
 ```
 
 ## Practical Notes
 
-- If one source is temporarily unavailable, continue with the others and say so at the top of the digest.
+- Attempt all four sources every run before concluding coverage is sufficient.
+- If one source is temporarily unavailable, continue with the others and note it in the short `Collection:` / `Collection notes:` header lines.
+- Keep collection notes concise: one short clause per exception, no narrative process logs.
 - If X yields too little data for a credible sample, include only clearly substantive X items and explicitly backfill from Hacker News for the tech bucket.
 - Prefer fewer, better items over padding with junk, but still fill toward the target range when credible items exist.
 - Use X proactively to populate the tech / AI / robotics bucket.
 - Preserve several strong HN deep reads even when they are not breaking news.
+- After the markdown digest is final, always render the paired HTML output in the same run so the Markdown and HTML versions stay in sync.
