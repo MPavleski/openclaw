@@ -73,9 +73,9 @@ export async function listEnvelopes(params: {
   }
 
   const cmdStr = args.join(" ");
-  log.debug(`[imap-himalaya] executing: ${cmdStr}`);
+  log.trace(`[imap-himalaya] executing: ${cmdStr}`);
   const result = await runCommandWithTimeout(args, { timeoutMs: 30_000 });
-  log.debug(
+  log.trace(
     `[imap-himalaya] exit code: ${result.code}, stdout length: ${result.stdout.length}, stderr: ${result.stderr?.slice(0, 200) || "(none)"}`,
   );
   if (result.code !== 0) {

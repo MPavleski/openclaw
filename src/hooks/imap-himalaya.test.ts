@@ -4,6 +4,7 @@ import { listEnvelopes } from "./imap-himalaya.js";
 vi.mock("../logging/subsystem.js", () => ({
   createSubsystemLogger: () => ({
     debug: vi.fn(),
+    trace: vi.fn(),
   }),
 }));
 

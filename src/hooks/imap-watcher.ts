@@ -53,26 +53,26 @@ export async function startImapWatcher(
   overrides?: import("./imap.js").ImapHookOverrides,
   opts?: StartImapWatcherOptions,
 ): Promise<ImapWatcherStartResult> {
-  log.debug("startImapWatcher called");
+  log.trace("startImapWatcher called");
 
   if (!opts?.skipHooksEnabledCheck && !cfg.hooks?.enabled) {
-    log.debug("hooks not enabled, skipping start");
+    log.trace("hooks not enabled, skipping start");
     return { started: false, reason: "hooks not enabled" };
   }
 
-  log.debug("resolving imap config");
+  log.trace("resolving imap config");
   const resolved = await resolveImapHookRuntimeConfig(cfg, overrides ?? {});
   if (!resolved.ok) {
-    log.debug(`config resolution failed: ${resolved.error}`);
+    log.trace(`config resolution failed: ${resolved.error}`);
     return { started: false, reason: resolved.error };
   }
 
-  log.debug(`checking himalaya availability...`);
+  log.trace(`checking himalaya availability...`);
   if (!isHimalayaAvailable()) {
-    log.debug("himalaya binary not found");
+    log.trace("himalaya binary not found");
     return { started: false, reason: "himalaya binary not found" };
   }
-  log.debug("himalaya binary found");
+  log.trace("himalaya binary found");
 
   const runtimeConfig = resolved.value;
   log.debug(`config resolved successfully:`);
@@ -94,7 +94,7 @@ export async function startImapWatcher(
   const currentGeneration = generation;
 
   // Schedule the first poll immediately.
-  log.debug("scheduling first poll immediately");
+  log.trace("scheduling first poll immediately");
   schedulePoll(runtimeConfig, 0, currentGeneration);
 
   log.info(
@@ -108,11 +108,11 @@ export async function startImapWatcher(
  * Stop the IMAP watcher service.
  */
 export async function stopImapWatcher(): Promise<void> {
-  log.debug("stopImapWatcher called");
+  log.trace("stopImapWatcher called");
   shuttingDown = true;
 
   if (pollTimer) {
-    log.debug("clearing poll timer");
+    log.trace("clearing poll timer");
     clearTimeout(pollTimer);
     pollTimer = null;
   }
@@ -126,7 +126,7 @@ export async function stopImapWatcher(): Promise<void> {
  */
 export function isImapWatcherRunning(): boolean {
   const running = currentConfig !== null && !shuttingDown;
-  log.debug(
+  log.trace(
     `isImapWatcherRunning: ${running} (currentConfig=${!!currentConfig}, shuttingDown=${shuttingDown})`,
   );
   return running;
@@ -136,10 +136,10 @@ export function isImapWatcherRunning(): boolean {
 
 function schedulePoll(cfg: ImapHookRuntimeConfig, delayMs: number, expectedGeneration: number) {
   if (shuttingDown) {
-    log.debug("schedulePoll: shutting down, not scheduling");
+    log.trace("schedulePoll: shutting down, not scheduling");
     return;
   }
-  log.debug(
+  log.trace(
     `schedulePoll: scheduling next poll in ${delayMs}ms (generation=${expectedGeneration})`,
   );
   pollTimer = setTimeout(() => {
@@ -148,16 +148,16 @@ function schedulePoll(cfg: ImapHookRuntimeConfig, delayMs: number, expectedGener
 }
 
 async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: number): Promise<void> {
-  log.debug(`runPollCycle started (generation=${expectedGeneration})`);
+  log.trace(`runPollCycle started (generation=${expectedGeneration})`);
 
   if (shuttingDown || !currentConfig) {
-    log.debug("shuttingDown or no currentConfig, aborting poll cycle");
+    log.trace("shuttingDown or no currentConfig, aborting poll cycle");
     return;
   }
 
   // Check if this is a stale poll cycle from a previous watcher instance
   if (expectedGeneration !== generation) {
-    log.debug(
+    log.trace(
       `stale poll cycle detected (expected=${expectedGeneration}, current=${generation}), aborting`,
     );
     return;
@@ -173,16 +173,16 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
     while (hasMorePages) {
       // Check generation before fetching each page
       if (expectedGeneration !== generation) {
-        log.debug(`stale poll cycle detected during pagination, aborting`);
+        log.trace(`stale poll cycle detected during pagination, aborting`);
         break;
       }
 
       if (shuttingDown) {
-        log.debug("shutting down, breaking out of pagination loop");
+        log.trace("shutting down, breaking out of pagination loop");
         break;
       }
 
-      log.debug(
+      log.trace(
         `listing envelopes page ${page}: account=${cfg.account}, folder=${cfg.folder}, query=${cfg.query}, pageSize=${ENVELOPE_PAGE_SIZE}`,
       );
       const envelopes = await listEnvelopes({
@@ -194,29 +194,29 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
         config: cfg.himalayaConfig,
       });
 
-      log.debug(`retrieved ${envelopes.length} envelopes from himalaya page ${page}`);
+      log.trace(`retrieved ${envelopes.length} envelopes from himalaya page ${page}`);
       const hasFullPage = envelopes.length === ENVELOPE_PAGE_SIZE;
 
       // Stop if no more envelopes on this page
       if (envelopes.length === 0) {
-        log.debug(`no envelopes on page ${page}, stopping pagination`);
+        log.trace(`no envelopes on page ${page}, stopping pagination`);
         hasMorePages = false;
         break;
       }
 
       if (page === 1 && envelopes.length > 0) {
-        log.debug(
+        log.trace(
           `first envelope: id=${envelopes[0].id}, subject="${envelopes[0].subject}", from="${envelopes[0].from}"`,
         );
       }
 
       const newEnvelopes = envelopes.filter((e) => e.id && !seenIds.has(e.id));
-      log.debug(`found ${newEnvelopes.length} new envelopes on page ${page} (not in seenIds set)`);
+      log.trace(`found ${newEnvelopes.length} new envelopes on page ${page} (not in seenIds set)`);
 
       // Continue pagination even when this page is fully seen so unread
       // messages on deeper pages are still retried after partial failures.
       if (newEnvelopes.length === 0) {
-        log.debug(`all envelopes on page ${page} already processed, continuing pagination`);
+        log.trace(`all envelopes on page ${page} already processed, continuing pagination`);
         page++;
         continue;
       }
@@ -225,12 +225,12 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
         isAllowedSender(envelope.from, cfg.allowedSenders),
       );
       if (allowedEnvelopes.length < newEnvelopes.length) {
-        log.debug(
+        log.trace(
           `filtered ${newEnvelopes.length - allowedEnvelopes.length} envelopes by allowlist on page ${page}`,
         );
       }
       if (allowedEnvelopes.length === 0) {
-        log.debug(`no allowlisted senders on page ${page}, continuing pagination`);
+        log.trace(`no allowlisted senders on page ${page}, continuing pagination`);
         page++;
         continue;
       }
@@ -255,7 +255,7 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
           continue;
         }
 
-        log.debug(
+        log.trace(
           `processing envelope ${envelope.id}: "${envelope.subject}" from "${envelope.from}"`,
         );
         try {
@@ -276,7 +276,7 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
       }
 
       if (!hasFullPage) {
-        log.debug(`page ${page} returned ${envelopes.length} envelopes; stopping pagination`);
+        log.trace(`page ${page} returned ${envelopes.length} envelopes; stopping pagination`);
         hasMorePages = false;
         break;
       }
@@ -284,7 +284,7 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
       page++;
     }
 
-    log.debug(`pagination complete, processed ${totalProcessed} envelopes total`);
+    log.trace(`pagination complete, processed ${totalProcessed} envelopes total`);
     pruneSeenIds();
   } catch (err) {
     log.error(`poll cycle failed: ${String(err)}`);
@@ -292,12 +292,12 @@ async function runPollCycle(cfg: ImapHookRuntimeConfig, expectedGeneration: numb
 
   // Check generation before rescheduling
   if (expectedGeneration !== generation) {
-    log.debug(`stale poll cycle detected before reschedule, not rescheduling`);
+    log.trace(`stale poll cycle detected before reschedule, not rescheduling`);
     return;
   }
 
   // Schedule next poll.
-  log.debug(`scheduling next poll in ${cfg.pollIntervalSeconds}s`);
+  log.trace(`scheduling next poll in ${cfg.pollIntervalSeconds}s`);
   schedulePoll(cfg, cfg.pollIntervalSeconds * 1000, expectedGeneration);
 }
 
@@ -305,12 +305,12 @@ async function processEnvelope(
   cfg: ImapHookRuntimeConfig,
   envelope: { id: string; from: string; subject: string; date: string },
 ): Promise<void> {
-  log.debug(`processEnvelope: id=${envelope.id}, includeBody=${cfg.includeBody}`);
+  log.trace(`processEnvelope: id=${envelope.id}, includeBody=${cfg.includeBody}`);
   let body = "";
   let snippet = "";
 
   if (cfg.includeBody) {
-    log.debug(`reading message body for ${envelope.id}`);
+    log.trace(`reading message body for ${envelope.id}`);
     try {
       // Read without marking seen (we'll mark explicitly if markSeen is true).
       const message = await readMessage({
@@ -323,7 +323,7 @@ async function processEnvelope(
       const originalBodyLength = message.body.length;
       body = truncateBody(message.body, cfg.maxBytes);
       snippet = message.body.slice(0, 200);
-      log.debug(
+      log.trace(
         `message ${envelope.id} read: original=${originalBodyLength} chars, truncated to ${body.length} chars (maxBytes=${cfg.maxBytes})`,
       );
     } catch (err) {
@@ -332,7 +332,7 @@ async function processEnvelope(
       throw new Error(msg, { cause: err });
     }
   } else {
-    log.debug(`skipping body read (includeBody=false)`);
+    log.trace(`skipping body read (includeBody=false)`);
   }
 
   const payload = {
@@ -348,13 +348,13 @@ async function processEnvelope(
     ],
   };
 
-  log.debug(`delivering payload to hook: ${cfg.hookUrl}`);
-  log.debug(`payload subject: "${envelope.subject}"`);
-  log.debug(`payload from: "${envelope.from}"`);
+  log.trace(`delivering payload to hook: ${cfg.hookUrl}`);
+  log.trace(`payload subject: "${envelope.subject}"`);
+  log.trace(`payload from: "${envelope.from}"`);
   await deliverToHook(cfg, payload);
 
   if (cfg.markSeen) {
-    log.debug(`marking envelope ${envelope.id} as seen`);
+    log.trace(`marking envelope ${envelope.id} as seen`);
     try {
       await markEnvelopeSeen({
         account: cfg.account,
@@ -362,20 +362,20 @@ async function processEnvelope(
         folder: cfg.folder,
         config: cfg.himalayaConfig,
       });
-      log.debug(`envelope ${envelope.id} marked as seen`);
+      log.trace(`envelope ${envelope.id} marked as seen`);
     } catch (err) {
       log.warn(`failed to mark envelope ${envelope.id} as seen: ${String(err)}`);
     }
   } else {
-    log.debug(`skipping mark as seen (markSeen=false)`);
+    log.trace(`skipping mark as seen (markSeen=false)`);
   }
 }
 
 async function deliverToHook(cfg: ImapHookRuntimeConfig, payload: unknown): Promise<void> {
-  log.debug(`deliverToHook: POST to ${cfg.hookUrl}`);
+  log.trace(`deliverToHook: POST to ${cfg.hookUrl}`);
   const payloadJson = JSON.stringify(payload);
-  log.debug(`payload: ${payloadJson}`);
-  log.debug(`payload size: ${payloadJson.length} bytes`);
+  log.trace(`payload: ${payloadJson}`);
+  log.trace(`payload size: ${payloadJson.length} bytes`);
 
   const controller = new AbortController();
   const timeoutMs = 30_000;
@@ -400,7 +400,7 @@ async function deliverToHook(cfg: ImapHookRuntimeConfig, payload: unknown): Prom
       throw new Error(msg);
     }
     clearTimeout(timeout);
-    log.debug(`hook delivery succeeded: ${response.status}`);
+    log.trace(`hook delivery succeeded: ${response.status}`);
   } catch (err) {
     clearTimeout(timeout);
     if (err instanceof Error && err.name === "AbortError") {
@@ -422,9 +422,9 @@ function truncateBody(body: string, maxBytes: number): string {
 }
 
 function pruneSeenIds(): void {
-  log.debug(`pruneSeenIds: current size=${seenIds.size}, max=${MAX_SEEN_IDS}`);
+  log.trace(`pruneSeenIds: current size=${seenIds.size}, max=${MAX_SEEN_IDS}`);
   if (seenIds.size <= MAX_SEEN_IDS) {
-    log.debug("pruneSeenIds: no pruning needed");
+    log.trace("pruneSeenIds: no pruning needed");
     return;
   }
   // Keep the most recent entries. Since Set iterates in insertion order and
@@ -432,10 +432,10 @@ function pruneSeenIds(): void {
   // the end to retain recent IDs and drop the oldest ones.
   const idsArray = Array.from(seenIds);
   const excess = idsArray.length - MAX_SEEN_IDS;
-  log.debug(`pruneSeenIds: pruning ${excess} oldest entries`);
+  log.trace(`pruneSeenIds: pruning ${excess} oldest entries`);
   const keptIds = idsArray.slice(excess);
   seenIds = new Set(keptIds);
-  log.debug(`pruneSeenIds: new size=${seenIds.size}`);
+  log.trace(`pruneSeenIds: new size=${seenIds.size}`);
 }
 
 function isAllowedSender(from: string, allowedSenders: string[]): boolean {
@@ -449,7 +449,7 @@ function isAllowedSender(from: string, allowedSenders: string[]): boolean {
   }
   const senderAddress = extractSenderAddress(normalizedFrom);
   const allowed = senderAddress ? normalizedAllowed.includes(senderAddress) : false;
-  log.debug(
+  log.trace(
     `allowlist check: from="${from}" normalized="${normalizedFrom}" sender=${senderAddress ?? ""} allowed=${normalizedAllowed.join(",")} result=${allowed}`,
   );
   return allowed;
